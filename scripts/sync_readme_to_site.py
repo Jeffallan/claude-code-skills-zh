@@ -42,6 +42,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 README_PATH = REPO_ROOT / "README.md"
 HTML_PATH = REPO_ROOT / "docs" / "index.html"
 SITEMAP_PATH = REPO_ROOT / "docs" / "sitemap.xml"
+PROMO_PATH = REPO_ROOT / "PROMO.md"
 GITHUB_REPO = "laolaoshiren/claude-code-skills-zh"
 SITE_HOME_URL = "https://claude-skills.bt199.com/"
 GITHUB_GRAPHQL_BATCH_SIZE = 50
@@ -996,6 +997,77 @@ def update_readme_badges(
     return readme
 
 
+def update_promo_counts(
+    promo: str,
+    total_skills: int,
+    total_original: int,
+) -> str:
+    """同步 PROMO.md 中的精选数量与原创数量，并严格校验每处锚点唯一。
+
+    PROMO.md 是对外推广口径，数字必须与 README / 官网保持一致。历史上这里
+    靠人工跟进，曾两次因为漏改导致
+    ``test_original_skill_sets_and_promo_counts_are_consistent`` 失败，
+    因此纳入同步流程统一维护。
+
+    每处锚点都要求恰好命中一次，缺失或重复都会抛错，避免改错位置。
+    """
+    patterns = [
+        (
+            r'(— )\d+(\+ 精选技能)',
+            total_skills,
+            "PROMO V2EX 标题精选数量",
+        ),
+        (
+            r'(还整理了 )\d+(\+ 第三方精选资源)',
+            total_skills,
+            "PROMO V2EX 正文精选数量",
+        ),
+        (
+            r'(✅ )\d+(\+ 精选资源列表)',
+            total_skills,
+            "PROMO 推文精选数量",
+        ),
+        (
+            r'(不只列出了 )\d+(\+ 优质资源)',
+            total_skills,
+            "PROMO 知乎精选数量",
+        ),
+        (
+            r'(不只列了 )\d+(\+ 好用的资源)',
+            total_skills,
+            "PROMO 微信群精选数量",
+        ),
+        (
+            r'(— \d+\+ 精选技能 \+ )\d+( 个原创可安装技能)',
+            total_original,
+            "PROMO V2EX 标题原创数量",
+        ),
+        (
+            r'(✅ )\d+( 个原创可安装技能)',
+            total_original,
+            "PROMO 推文原创数量",
+        ),
+        (
+            r'(不只列出了 \d+\+ 优质资源，还带了 )\d+( 个原创技能可以直接装)',
+            total_original,
+            "PROMO 知乎原创数量",
+        ),
+        (
+            r'(不只列了 \d+\+ 好用的资源，还带了 )\d+( 个原创技能可以直接装)',
+            total_original,
+            "PROMO 微信群原创数量",
+        ),
+    ]
+    for pattern, value, label in patterns:
+        promo = _replace_exact(
+            promo,
+            pattern,
+            lambda match, v=value: f"{match.group(1)}{v}{match.group(2)}",
+            label,
+        )
+    return promo
+
+
 def build_sync_outputs(
     readme_content: str,
     html_content: str,
@@ -1097,6 +1169,9 @@ def main():
     print("📖 读取 docs/sitemap.xml ...")
     sitemap_content = read_file(SITEMAP_PATH)
 
+    print("📖 读取 PROMO.md ...")
+    promo_content = read_file(PROMO_PATH)
+
     # 2. 解析 README 中的分类表格
     print("🔍 解析 README 分类表格 ...")
     skills_data = parse_readme(readme_content)
@@ -1154,6 +1229,10 @@ def main():
         project_date=project_date,
     )
 
+    # 6b. 同步 PROMO.md 的推广口径；不含日期，因此不影响 material_changed。
+    print("🔧 同步 PROMO.md 的精选与原创数量 ...")
+    new_promo = update_promo_counts(promo_content, total_skills, original_count)
+
     if dry_run:
         print("\n--- 预览 skillsData ---")
         print(skills_js[:2000])
@@ -1169,6 +1248,7 @@ def main():
             README_PATH: new_readme,
             HTML_PATH: new_html,
             SITEMAP_PATH: new_sitemap,
+            PROMO_PATH: new_promo,
         }
     )
     if changed_paths:

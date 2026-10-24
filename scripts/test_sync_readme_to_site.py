@@ -649,6 +649,51 @@ def test_checked_in_landing_pages_avoid_unsynced_ecosystem_stats() -> None:
     assert "AI Coding Skills 正在爆发式增长" not in html
 
 
+def test_update_promo_counts_refreshes_all_occurrences() -> None:
+    """PROMO.md 的每处精选/原创数量都应被同步，且互不干扰。"""
+    promo = """**标题：** [分享] Claude Code Skills 中文精选集 — 438+ 精选技能 + 20 个原创可安装技能
+
+还整理了 438+ 第三方精选资源，按场景分类。
+
+✅ 438+ 精选资源列表
+✅ 20 个原创可安装技能
+
+不只列出了 438+ 优质资源，还带了 20 个原创技能可以直接装：
+
+不只列了 438+ 好用的资源，还带了 20 个原创技能可以直接装：
+"""
+    updated = sync_readme_to_site.update_promo_counts(promo, 445, 21)
+
+    # 标题 1 处 + 正文 4 处 = 5 处精选数量
+    assert updated.count("445+") == 5
+    assert "438+" not in updated
+    # 标题 1 处 + 正文 3 处 = 4 处原创数量
+    assert updated.count("21 个原创") == 4
+    assert "20 个原创" not in updated
+    # 除数字外不应改动其他文字
+    assert "第三方精选资源" in updated
+    assert "好用的资源" in updated
+
+
+def test_update_promo_counts_fails_closed_on_missing_anchor() -> None:
+    """锚点缺失时必须抛错，不能静默留下过期数字。"""
+    broken = "**标题：** [分享] Claude Code Skills 中文精选集 — 438+ 精选技能\n"
+    _expect_runtime_error(
+        lambda: sync_readme_to_site.update_promo_counts(broken, 445, 21),
+    )
+
+
+def test_update_promo_counts_fails_closed_on_duplicate_anchor() -> None:
+    """同一锚点出现两次时必须抛错，避免改错位置。"""
+    duplicated = (
+        "✅ 438+ 精选资源列表\n"
+        "✅ 438+ 精选资源列表\n"
+    )
+    _expect_runtime_error(
+        lambda: sync_readme_to_site.update_promo_counts(duplicated, 445, 21),
+    )
+
+
 def test_original_skill_sets_and_promo_counts_are_consistent() -> None:
     skills_root = REPO_ROOT / "skills"
     skill_names = {
@@ -705,5 +750,8 @@ if __name__ == "__main__":
     test_checked_in_site_data_matches_readme()
     test_checked_in_readme_is_a_user_facing_landing_page()
     test_checked_in_landing_pages_avoid_unsynced_ecosystem_stats()
+    test_update_promo_counts_refreshes_all_occurrences()
+    test_update_promo_counts_fails_closed_on_missing_anchor()
+    test_update_promo_counts_fails_closed_on_duplicate_anchor()
     test_original_skill_sets_and_promo_counts_are_consistent()
     print("PASS: sync_readme_to_site.py regression tests")

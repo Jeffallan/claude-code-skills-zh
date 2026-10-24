@@ -20,9 +20,9 @@
 
 - 检查开放 PR 和 Issue，优先处理新增资源推荐、断链、描述错误。
 - 搜索近期活跃的 Claude Code / Codex / Agent Skills 项目，补充 5-15 个高相关条目。
-- 运行 `python scripts/sync_readme_to_site.py --fetch-stars` 同步 README、官网数据和 star 数。
+- 运行 `python scripts/sync_readme_to_site.py --fetch-stars` 同步 README 徽章、官网数据、`docs/sitemap.xml` 日期、以及 `PROMO.md` 中的精选与原创数量。
 - 跑本地校验，确保 GitHub Actions 不报错。
-- 仓库已配置 `Auto Maintenance` GitHub Actions，每 3 天自动同步 README / 官网统计并执行 lint、链接和脚本回归检查。
+- 仓库已配置 `Auto Maintenance` GitHub Actions，每周自动同步 README / 官网统计并向 `PROMO.md` 对齐数量，同时执行 lint、链接和脚本回归检查。
 
 每月维护：
 
